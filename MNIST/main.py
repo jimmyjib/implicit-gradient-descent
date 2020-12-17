@@ -106,6 +106,13 @@ def backprop(X, Y, params, cache, N_batch, lr):
         K2 += (1. / N_batch) * np.array(K2_n)
     '''
 
+    a = np.zeros(dZ2.shape[0])
+    for n in range(N_batch):
+        a_n = cache["A2"][:, n]
+        a += a_n * a_n
+    a *= (1. / N_batch)
+    K2 = [H3*a_i for a_i in a]
+
     #################################################################################
     # grad of first layer
     dW1 = (1. / N_batch) * np.matmul(dZ2, X.T)
@@ -126,6 +133,14 @@ def backprop(X, Y, params, cache, N_batch, lr):
         K1 += (1. / N_batch) * np.array(K1_n)
     '''
 
+    '''
+    a = np.zeros(X.shape[0])
+    for n in range(N_batch):
+        a_n = X[:, n]
+        a += a_n * a_n
+    a *= (1. / N_batch)
+    K1 = [H2 * a_i for a_i in a]
+    '''
     #################################################################################
     # calculate difference with CG
     '''
@@ -134,16 +149,22 @@ def backprop(X, Y, params, cache, N_batch, lr):
     dW2 = sc.cg(np.identity(dW2.shape[0]) - lr * K2, lr * dW2)[0]
     dW2 = dW2.reshape(dW2_shape)
     '''
+    
+    dW2 = [sc.cg(np.identity(dW2.shape[0])-lr*K2[i],lr*dW2[:,i])[0] for i in range(dW2.shape[1])]
+    dW2 = np.array(dW2).T
 
     db2 = sc.cg(np.identity(db2.shape[0]) - lr * H3, lr * db2)[0]
     db2 = np.array([[i] for i in db2])
-
 
     '''
     dW1_shape = dW1.shape
     dW1 = dW1.flatten()
     dW1 = sc.cg(np.identity(dW1.shape[0]) - lr * K1, lr * dW1)
     np.reshape(dW1[0], dW1_shape)
+    '''
+    '''
+    dW1 = [sc.cg(np.identity(dW1.shape[0]) - lr * K1[i], lr * dW1[:, i])[0] for i in range(dW1.shape[1])]
+    dW1 = np.array(dW1).T
     '''
 
     db1 = sc.cg(np.identity(db1.shape[0]) - lr * H2, lr * db1)[0]
@@ -157,13 +178,15 @@ def backprop(X, Y, params, cache, N_batch, lr):
 # training
 epochs = 50
 batch_size = 100
-learning_rate = 0.5
+learning_rate = 0.2
 for i in range(epochs):
     # shuffle dataset
     permutation = np.random.permutation(x_train.shape[1])
     x_train_shuffled = x_train[:, permutation]
     y_train_shuffled = y_train[:, permutation]
     batches = x_train.shape[1] // batch_size
+
+    if i>0 and i%10==0: learning_rate/=2
 
     for j in range(batches):
         # get mini-batch
